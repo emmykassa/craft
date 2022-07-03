@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:batch="http://www.mulesoft.org/schema/mule/batch" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns:salesforce="http://www.mulesoft.org/schema/mule/salesforce"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/salesforce http://www.mulesoft.org/schema/mule/salesforce/current/mule-salesforce.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/batch http://www.mulesoft.org/schema/mule/batch/current/mule-batch.xsd">
+	<http:listener-config name="HTTP_Listener_config" doc:name="HTTP Listener config" doc:id="5cf9f12d-8218-456a-84ed-2c8472888ac4" >
+		<http:listener-connection host="0.0.0.0" port="8081" />
+	</http:listener-config>
+	<salesforce:sfdc-config name="Salesforce_Config" doc:name="Salesforce Config" doc:id="82db31e2-b798-4046-b813-28e388be2605" >
+		<salesforce:basic-connection username="craftt@2022.com" password="moon1234" securityToken="QKEit0Gv1Jn39XMWUiNpVYze" />
+	</salesforce:sfdc-config>
+	<salesforce:sfdc-config name="Salesforce_Config1" doc:name="Salesforce Config" doc:id="62642a51-58f7-4cc3-a79e-cdd10e79219d" >
+		<salesforce:basic-connection username="Rut@batch25.com" password="SaFDv@6#22" securityToken="6HHnW9x2r3KkR4LnYXjhSLZJ" />
+	</salesforce:sfdc-config>
+	<flow name="projectFlow" doc:id="f1971eeb-396b-47dd-8384-6908c543d0ad" >
+		<salesforce:modified-object-listener doc:name="On Modified Object" doc:id="7a71c44e-b931-414f-9281-abbfc136cc18" config-ref="Salesforce_Config" objectType="Contact">
+			<scheduling-strategy >
+				<fixed-frequency />
+			</scheduling-strategy>
+		</salesforce:modified-object-listener>
+		<logger level="INFO" doc:name="Logger" doc:id="e03e06c4-3e06-4516-91ec-5609def0c665" message="done"/>
+		<ee:transform doc:name="Transform Message" doc:id="ba2a1df4-1063-41b0-8ed8-5b9e07700bc2" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<batch:job jobName="projectBatch_Job" doc:id="2779930a-4e1d-4926-978e-a89e179a5756" >
+			<batch:process-records >
+				<batch:step name="Batch_Step1" doc:id="f1cc375d-6ea3-4602-a4ce-2f84887bf897" >
+					<salesforce:query doc:name="Query" doc:id="abfe0dcd-746e-430b-87ac-96d3aed41bdb" config-ref="Salesforce_Config">
+			<salesforce:salesforce-query><![CDATA[SELECT Email,Id,LastName,Phone FROM Contact]]></salesforce:salesforce-query>
+		</salesforce:query>
+					<ee:transform doc:name="Transform Message" doc:id="5501136b-0cd4-4ced-bb5c-815368d64c94">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+				</batch:step>
+				<batch:step name="Batch_Step" doc:id="1c635f38-e1bc-47a2-b4e6-3ffa56ff9665" >
+					<ee:transform doc:name="Transform Message" doc:id="63879346-9a7c-467c-b1cb-4f3149cba9f6" >
+						<ee:message >
+							<ee:set-payload ><![CDATA[%dw 2.0
+output application/java
+---
+ payload map(item,index)->
+{
+	Id: item.Id,
+	LastName: item.LastName,
+	Phone: item.Phone,
+	Email: item.Email
+}]]></ee:set-payload>
+						</ee:message>
+					</ee:transform>
+					<salesforce:upsert objectType="Contact" externalIdFieldName="Id" doc:name="Upsert" doc:id="3af46c03-7d45-4c0b-94e8-07dd25cbf42c" config-ref="Salesforce_Config1"/>
+					<batch:aggregator doc:name="Batch Aggregator" doc:id="26cf720b-374f-4081-a65a-d14381959888" streaming="true">
+						<logger level="INFO" doc:name="Logger" doc:id="ade8351e-ee3d-4e1e-9304-48ad96b3748e" message="Transfered"/>
+					</batch:aggregator>
+				</batch:step>
+			</batch:process-records>
+			<batch:on-complete >
+				<ee:transform doc:name="Transform Message" doc:id="9bc631c5-160b-460f-9e49-31f635f7d2bc" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</batch:on-complete>
+		</batch:job>
+	</flow>
+</mule>
